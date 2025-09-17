@@ -23,13 +23,14 @@ from contextlib import contextmanager
 import warnings
 warnings.filterwarnings('ignore')
 
+'''
 # Platform-specific imports
 import platform
 if platform.system() != 'Windows':
     import signal
 else:
     signal = None
-
+'''
 # LLM Integration
 try:
     import openai
@@ -56,57 +57,23 @@ logger = logging.getLogger(__name__)
 
 class TimeoutException(Exception):
     pass
-def timeout_decorator(timeout_seconds):
-    """A decorator that can be used to set a timeout on a function."""
-    def wrapper(func: Callable[..., Any]):
-        def inner(*args, **kwargs):
-            result = [None]
-            exception = [None]
-            
-            def target():
-                try:
-                    result[0] = func(*args, **kwargs)
-                except Exception as e:
-                    exception[0] = e
 
-            thread = threading.Thread(target=target)
-            thread.daemon = True
-            thread.start()
-            thread.join(timeout_seconds)
-
-            if thread.is_alive():
-                raise TimeoutException("Code execution timed out")
-            
-            if exception[0]:
-                raise exception[0]
-                
-            return result[0]
-        return inner
-    return wrapper
-    
 @contextmanager
 def timeout(seconds):
-    """Context manager for timing out code execution (thread-based)."""
-    start_time = time.time()
-    def get_time():
-        return time.time() - start_time
-    
-    # Store the timeout duration and a way to get elapsed time in a temporary global state
-    # This is a simplification; in a real app, you might pass this state explicitly
-    globals()['_timeout_duration'] = seconds
-    globals()['_get_elapsed_time'] = get_time
-    
-    try:
-        yield
-        # Check for timeout after the block has run
-        if get_time() > seconds:
+    """Context manager for timing out code execution - Windows compatible"""
+    if signal and hasattr(signal, 'SIGALRM'):
+        def signal_handler(signum, frame):
             raise TimeoutException("Code execution timed out")
-    except TimeoutException:
-        raise
-    finally:
-        # Clean up the temporary state
-        globals().pop('_timeout_duration', None)
-        globals().pop('_get_elapsed_time', None)
+        
+        old_handler = signal.signal(signal.SIGALRM, signal_handler)
+        signal.alarm(seconds)
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+    else:
+        yield
 
 class SafeCodeExecutor:
     """Safe execution environment for generated code"""
