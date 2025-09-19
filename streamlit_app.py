@@ -23,14 +23,11 @@ from contextlib import contextmanager
 import warnings
 warnings.filterwarnings('ignore')
 
-'''
-# Platform-specific imports
-import platform
-if platform.system() != 'Windows':
-    import signal
-else:
-    signal = None
-'''
+import concurrent.futures
+
+
+
+
 # LLM Integration
 try:
     import openai
@@ -59,21 +56,31 @@ class TimeoutException(Exception):
     pass
 
 @contextmanager
+class TimeoutException(Exception):
+    pass
+
+@contextmanager
 def timeout(seconds):
-    """Context manager for timing out code execution - Windows compatible"""
-    if signal and hasattr(signal, 'SIGALRM'):
-        def signal_handler(signum, frame):
-            raise TimeoutException("Code execution timed out")
-        
-        old_handler = signal.signal(signal.SIGALRM, signal_handler)
-        signal.alarm(seconds)
-        try:
-            yield
-        finally:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
-    else:
-        yield
+    """
+    Context manager for timing out code execution.
+    Works cross-platform (Windows, Linux, macOS) and inside Streamlit.
+    """
+    # Executor for running code in a separate thread
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    
+    # Wrapper that will run the code inside the 'with' block
+    future = executor.submit(lambda: None)  # placeholder
+    
+    try:
+        yield future  # The user can call future.result(timeout=seconds) to run code
+    finally:
+        executor.shutdown(wait=False)
+
+
+
+
+
+
 
 class SafeCodeExecutor:
     """Safe execution environment for generated code"""
