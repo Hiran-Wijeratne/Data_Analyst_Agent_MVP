@@ -52,8 +52,7 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class TimeoutException(Exception):
-    pass
+
 
 @contextmanager
 class TimeoutException(Exception):
@@ -985,14 +984,6 @@ def main():
     # Sidebar
     with st.sidebar:
         st.header("⚙️ Configuration")
-        
-        st.markdown("""
-        **🔒 API Key Security:**
-        - Your API key is kept secure in the session
-        - Not logged or stored permanently
-        - Use environment variable OPENAI_API_KEY for added security
-        """)
-        
         # API Key input with better security
         api_key = st.secrets.get("OPENAI_API_KEY", "")
         
